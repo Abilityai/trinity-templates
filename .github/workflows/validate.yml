@@ -1,0 +1,54 @@
+name: validate
+
+# registry.yaml is live production config: every Trinity install fetches it on a
+# 1-hour TTL and the bundled floor is EMPTY, so a document-level refusal removes
+# the agent-template catalog from every install. This workflow is the only gate
+# between a commit here and that.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    # Weekly re-resolution: a listed repo can be renamed, archived, or made
+    # private without anyone touching this repo, and nothing else would notice.
+    - cron: "0 6 * * 1"
+
+jobs:
+  document:
+    name: Document gates (hermetic)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install pyyaml httpx
+
+      # Reuse the platform's own registry parser (pinned) so this repo and
+      # Trinity cannot drift — the trinity-skills precedent (ent#296).
+      - name: Vendor the Trinity platform registry parser
+        run: |
+          PIN=ac434b9de8637b186c8eb01565085241393aea4a
+          BASE="https://raw.githubusercontent.com/Abilityai/trinity/$PIN/src/backend"
+          mkdir -p /tmp/platform/services /tmp/platform/utils
+          curl -fsSL "$BASE/services/template_registry_service.py" -o /tmp/platform/services/template_registry_service.py
+          curl -fsSL "$BASE/utils/safe_yaml.py" -o /tmp/platform/utils/safe_yaml.py
+          touch /tmp/platform/services/__init__.py /tmp/platform/utils/__init__.py
+
+      - name: Validate registry (own gates + platform parser parity)
+        run: python tools/validate.py --platform-parser /tmp/platform
+
+  resolve:
+    name: Repo gates (GitHub API)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install pyyaml
+      - name: Resolve every listed repo
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python tools/validate.py --resolve
