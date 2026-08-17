@@ -1,0 +1,34 @@
+# Trinity agent-template registry
+#
+# Trinity installs read this file at runtime to decide which GitHub repos the
+# Library offers as agent templates (abilityai/trinity#TMPL-002,
+# trinity-enterprise#14). Editing this file changes every install's catalog on
+# the next fetch — no Trinity release required.
+#
+# Schema (enforced by src/backend/services/template_registry_service.py):
+#   version   int, must be 1
+#   templates list, max 25 entries
+#     repo          REQUIRED  "owner/name", ^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$
+#     display_name  optional  <= 200 chars
+#     description   optional  <= 1000 chars
+#
+# No other key is read. A registry entry CANNOT assert `fork_to_own`,
+# `credentials`, `schedules`, `hidden` or `id` — those come only from the
+# listed repo's own template.yaml, which is the trust boundary. Listing a repo
+# here is a recommendation, not a warranty: Trinity clones and trusts that
+# repo's template.yaml, so only list repos you control or have reviewed.
+#
+# Every listed repo MUST be public and anonymously cloneable — Trinity's
+# tokenless clone path (trinity-enterprise#123) is what lets a fresh install
+# create these agents with no GitHub PAT.
+
+version: 1
+
+templates:
+  - repo: Abilityai/cornelius
+    display_name: "Cornelius — Second Brain"
+    description: >-
+      AI insight harvester and second-brain partner over an Obsidian knowledge
+      base. Captures original thinking, discovers non-obvious connections
+      between notes, runs deep-research pipelines, and grounds advice in what
+      you already know.
