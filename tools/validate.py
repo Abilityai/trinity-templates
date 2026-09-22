@@ -345,6 +345,136 @@ def check_resolution(entries: list[dict]) -> None:
                 warn("freshness", f"{repo}: template.yaml `{field}` still carries a "
                                   f"placeholder: {value.strip()[:60]!r}")
 
+        # Declared business metrics (trinity-enterprise#483). Warn-tier: a malformed
+        # block is how an agent silently loses every metric once the platform
+        # validates recorded points against the declaration (ent#477 registry,
+        # compat check D-009). Same shape rules as the platform reader.
+        if "metrics" in tpl:
+            for msg in metrics_block_findings(tpl.get("metrics")):
+                warn("metrics", f"{repo}: {msg}")
+
+
+
+# ---------------------------------------------------------------------------
+# Gate: declared business metrics — shape parity with the platform reader
+# (trinity-enterprise#477 `services/template_metrics.py`, compat D-009).
+# Pure: takes the parsed `metrics:` value, returns human-readable findings.
+# ---------------------------------------------------------------------------
+
+METRIC_NAME_RE = re.compile(r"^[a-z][a-z0-9_]{0,63}$")
+METRIC_TYPES = {"counter", "gauge", "percentage", "status", "duration", "bytes"}
+METRIC_DIRECTIONS = {"up_good", "down_good", "neutral"}
+METRIC_AGGREGATIONS = {"last", "sum", "avg"}
+METRIC_KNOWN_KEYS = {"name", "type", "label", "description", "unit", "warning_threshold",
+                     "critical_threshold", "values", "cadence", "direction", "aggregation",
+                     "dimensions"}
+CADENCE_SHORT_RE = re.compile(r"^(\d+)([smhdw])$")
+CADENCE_ISO_RE = re.compile(r"^P(?:(\d+)W|(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?)?)$")
+CADENCE_MIN_S, CADENCE_MAX_S = 60, 366 * 86400
+MAX_METRICS, MAX_STATUS_VALUES, MAX_DIMENSIONS = 50, 50, 10
+
+
+def cadence_seconds(value) -> int | None:
+    """Parse the platform's cadence grammar: <n>(s|m|h|d|w) or an ISO 8601 duration
+    without years/months. Returns None when unparseable or out of bounds."""
+    if not isinstance(value, str):
+        return None
+    m = CADENCE_SHORT_RE.match(value.strip())
+    if m:
+        n, unit = int(m.group(1)), m.group(2)
+        secs = n * {"s": 1, "m": 60, "h": 3600, "d": 86400, "w": 604800}[unit]
+    else:
+        m = CADENCE_ISO_RE.match(value.strip())
+        if not m or value.strip() in ("P", "PT"):
+            return None
+        w, d, h, mi, sec = (int(x) if x else 0 for x in m.groups())
+        secs = w * 604800 + d * 86400 + h * 3600 + mi * 60 + sec
+    return secs if CADENCE_MIN_S <= secs <= CADENCE_MAX_S else None
+
+
+def metrics_block_findings(block) -> list[str]:
+    out: list[str] = []
+    if block is None:
+        return out
+    if not isinstance(block, list):
+        return ["`metrics:` must be a list of metric entries"]
+    if len(block) > MAX_METRICS:
+        out.append(f"`metrics:` declares {len(block)} entries — the platform caps at {MAX_METRICS}")
+    seen: set[str] = set()
+    for i, entry in enumerate(block):
+        at = f"metrics[{i}]"
+        if not isinstance(entry, dict):
+            out.append(f"{at}: entry is not a mapping")
+            continue
+        name = entry.get("name")
+        if not isinstance(name, str) or not METRIC_NAME_RE.match(name):
+            out.append(f"{at}: `name` must be snake_case (^[a-z][a-z0-9_]{{0,63}}$), got {name!r}")
+        elif name in seen:
+            out.append(f"{at}: duplicate metric name `{name}`")
+        else:
+            seen.add(name)
+        mtype = entry.get("type")
+        if mtype not in METRIC_TYPES:
+            out.append(f"{at}: `type` must be one of {sorted(METRIC_TYPES)}, got {mtype!r}")
+        if not isinstance(entry.get("label"), str) or not entry.get("label"):
+            out.append(f"{at}: `label` is required (shown in the UI)")
+        if "cadence" in entry and cadence_seconds(entry.get("cadence")) is None:
+            out.append(f"{at}: `cadence` {entry.get('cadence')!r} is not a duration between 60s and "
+                       f"366d (<n>s|m|h|d|w or ISO 8601 without years/months)")
+        if "direction" in entry and entry.get("direction") not in METRIC_DIRECTIONS:
+            out.append(f"{at}: `direction` must be one of {sorted(METRIC_DIRECTIONS)}")
+        if "aggregation" in entry and entry.get("aggregation") not in METRIC_AGGREGATIONS:
+            out.append(f"{at}: `aggregation` must be one of {sorted(METRIC_AGGREGATIONS)}")
+        dims = entry.get("dimensions")
+        if dims is not None:
+            if not isinstance(dims, list) or not all(isinstance(d, str) and METRIC_NAME_RE.match(d) for d in dims):
+                out.append(f"{at}: `dimensions` must be a list of snake_case keys")
+            elif len(dims) > MAX_DIMENSIONS:
+                out.append(f"{at}: `dimensions` lists {len(dims)} keys — the platform caps at {MAX_DIMENSIONS}")
+        values = entry.get("values")
+        if mtype == "status":
+            if not isinstance(values, list) or not values:
+                out.append(f"{at}: a `status` metric must declare non-empty `values`")
+            else:
+                if len(values) > MAX_STATUS_VALUES:
+                    out.append(f"{at}: `values` lists {len(values)} — the platform caps at {MAX_STATUS_VALUES}")
+                for j, v in enumerate(values):
+                    if not isinstance(v, dict) or not isinstance(v.get("value"), str) or not v.get("value"):
+                        out.append(f"{at}.values[{j}]: each status value needs a string `value`")
+        elif values is not None:
+            out.append(f"{at}: `values` is only meaningful on a `status` metric")
+        for key in entry:
+            if isinstance(key, str) and key not in METRIC_KNOWN_KEYS and not key.startswith("x-"):
+                out.append(f"{at}: unknown key `{key}` (x- keys pass through)")
+    return out
+
+
+def selftest_metrics() -> int:
+    """Fixture parity with the platform's named findings (ent#477 D-009). Exit 1 on drift."""
+    cases = [
+        ("valid", [{"name": "items", "type": "counter", "label": "Items", "cadence": "6h",
+                    "direction": "up_good", "aggregation": "sum", "dimensions": ["region"]},
+                   {"name": "state", "type": "status", "label": "State", "cadence": "P1D",
+                    "values": [{"value": "ok", "color": "green", "label": "OK"}]}], 0),
+        ("absent", None, 0),
+        ("not-a-list", {"name": "x"}, 1),
+        ("bad-name", [{"name": "Bad-Name", "type": "gauge", "label": "x"}], 1),
+        ("dup-name", [{"name": "a", "type": "gauge", "label": "x"}, {"name": "a", "type": "gauge", "label": "y"}], 1),
+        ("bad-type", [{"name": "a", "type": "histogram", "label": "x"}], 1),
+        ("bad-cadence-year", [{"name": "a", "type": "gauge", "label": "x", "cadence": "1y"}], 1),
+        ("bad-cadence-short", [{"name": "a", "type": "gauge", "label": "x", "cadence": "30s"}], 1),
+        ("status-no-values", [{"name": "a", "type": "status", "label": "x"}], 1),
+        ("values-on-gauge", [{"name": "a", "type": "gauge", "label": "x", "values": [{"value": "v"}]}], 1),
+        ("x-key-passes", [{"name": "a", "type": "gauge", "label": "x", "x-owner": "me"}], 0),
+        ("unknown-key", [{"name": "a", "type": "gauge", "label": "x", "bogus": 1}], 1),
+    ]
+    bad = 0
+    for label, block, expected in cases:
+        got = len(metrics_block_findings(block))
+        ok = (got == 0) if expected == 0 else (got >= expected)
+        print(f"{'ok  ' if ok else 'FAIL'} metrics-selftest {label}: {got} finding(s)")
+        bad += 0 if ok else 1
+    return 1 if bad else 0
 
 # ---------------------------------------------------------------------------
 # Gate: platform-parser parity (CI)
@@ -383,7 +513,11 @@ def main() -> int:
     ap.add_argument("--platform-parser", metavar="DIR",
                     help="directory holding the vendored Trinity parser (CI parity mode)")
     ap.add_argument("--json", action="store_true", help="emit findings as JSON")
+    ap.add_argument("--selftest-metrics", action="store_true",
+                    help="run the declared-metrics gate against its parity fixtures and exit")
     args = ap.parse_args()
+    if args.selftest_metrics:
+        return selftest_metrics()
 
     if not REGISTRY.exists():
         print("FAIL document: registry.yaml not found", file=sys.stderr)

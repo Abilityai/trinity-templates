@@ -39,6 +39,9 @@ jobs:
       - name: Validate registry (own gates + platform parser parity)
         run: python tools/validate.py --platform-parser /tmp/platform
 
+      - name: Declared-metrics gate parity fixtures (trinity-enterprise#483)
+        run: python tools/validate.py --selftest-metrics
+
   resolve:
     name: Repo gates (GitHub API)
     runs-on: ubuntu-latest
