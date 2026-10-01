@@ -32,3 +32,26 @@ templates:
       base. Captures original thinking, discovers non-obvious connections
       between notes, runs deep-research pipelines, and grounds advice in what
       you already know.
+
+  # Keymaker agency starter set - a fictional automation agency built in public during the
+  # Agent-Native Agency workshop series (keymaker.agency). Zero-credential; file-backed by
+  # default; one optional credential each connects the real system (CRM, projects).
+  - repo: Abilityai/keymaker-sales
+    display_name: "Keymaker Sales"
+    description: >-
+      The sales desk of a Trinity-powered automation agency. Runs deals on a real
+      pipeline with fixed stages, several owners at once, drafts every email for a
+      human to send, and asks the operator before a price moves off the list.
+      File-backed by default; add a Fibery token for a live CRM.
+  - repo: Abilityai/keymaker-delivery
+    display_name: "Keymaker Delivery"
+    description: >-
+      The delivery desk of the same agency. Every client with a health score, every
+      implementation with a state and a next step, stalls flagged before the client
+      notices. Reads the handoff Sales writes on a won deal. Add the project-* library
+      skills and a GitHub token for a GitHub Issues project registry.
+  - repo: Abilityai/keymaker-marketing
+    display_name: "Keymaker Marketing"
+    description: >-
+      The marketing desk of the same agency. Plans the content, counts the leads by
+      channel, writes the weekly report, hands qualified inbound to Sales.
