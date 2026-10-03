@@ -33,6 +33,15 @@ templates:
       between notes, runs deep-research pipelines, and grounds advice in what
       you already know.
 
+  - repo: Abilityai/agent-builder
+    display_name: "Agent Builder"
+    description: >-
+      Creates new agents on your instance from a one-paragraph brief. Runs the
+      Ability.ai create-agent wizard headlessly, asks you once for anything the
+      brief leaves open and once for approval, then creates the agent with every
+      schedule off until you review it. No credentials needed; optionally gets a
+      design from an advisor agent first.
+
   # Keymaker agency starter set - a fictional automation agency built in public during the
   # Agent-Native Agency workshop series (keymaker.agency). Zero-credential; file-backed by
   # default; one optional credential each connects the real system (CRM, projects).
