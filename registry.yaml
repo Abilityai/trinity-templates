@@ -45,6 +45,16 @@ templates:
   # Keymaker agency starter set - a fictional automation agency built in public during the
   # Agent-Native Agency workshop series (keymaker.agency). Zero-credential; file-backed by
   # default; one optional credential each connects the real system (CRM, projects).
+  # The orchestrator is the set's entry point: install it to get one chat over the desks.
+  - repo: Abilityai/keymaker-orchestrator
+    display_name: "Keymaker Orchestrator"
+    description: >-
+      The one agent you talk to in the same agency. Reads the agency's canon (who owns
+      which kind of work, who approves what, the price list), hands each request to the
+      one desk that owns it with a receipt, checks results against evidence, and brings
+      decisions to a person once, with options and an expiry. Never does a desk's work,
+      never edits the canon. Zero-credential; the canon is a public repo it clones
+      at start.
   - repo: Abilityai/keymaker-sales
     display_name: "Keymaker Sales"
     description: >-
