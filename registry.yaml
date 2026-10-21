@@ -42,6 +42,15 @@ templates:
       schedule off until you review it. No credentials needed; optionally gets a
       design from an advisor agent first.
 
+  - repo: Abilityai/website-builder
+    display_name: "Website Builder"
+    description: >-
+      Builds and runs websites from a plain-language brief. Describe the site in
+      chat and get a live URL: it scaffolds a Next.js site, gives it its own
+      private GitHub repo and deploys it to Vercel. Ask for a change later and it
+      edits and redeploys. Needs a Vercel token; asks you once for anything the
+      brief leaves open and never invents prices, addresses or names.
+
   # Keymaker agency starter set - a fictional automation agency built in public during the
   # Agent-Native Agency workshop series (keymaker.agency). Zero-credential; file-backed by
   # default; one optional credential each connects the real system (CRM, projects).
