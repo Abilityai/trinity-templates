@@ -78,6 +78,14 @@ templates:
       implementation with a state and a next step, stalls flagged before the client
       notices. Reads the handoff Sales writes on a won deal. Add the project-* library
       skills and a GitHub token for a GitHub Issues project registry.
+  - repo: Abilityai/keymaker-finance
+    display_name: "Keymaker Finance"
+    description: >-
+      The finance desk of the same agency. Turns a won deal into an invoice from the
+      price list and Sales' handoff, records payments against bank references, chases
+      overdue invoices on a fixed Day 1 / 7 / 14 ladder - and nothing reaches a client
+      until the finance lead approves that exact document in their Inbox. File-backed;
+      add a sending key to send what a person approved.
   - repo: Abilityai/keymaker-marketing
     display_name: "Keymaker Marketing"
     description: >-
