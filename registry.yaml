@@ -86,6 +86,14 @@ templates:
       overdue invoices on a fixed Day 1 / 7 / 14 ladder - and nothing reaches a client
       until the finance lead approves that exact document in their Inbox. File-backed;
       add a sending key to send what a person approved.
+  - repo: Abilityai/keymaker-prospector
+    display_name: "Keymaker Prospector"
+    description: >-
+      The prospecting desk of the same agency. Finds specialist recruiting firms of 20-100
+      people from their public footprint, qualifies each against the canon's who-we-serve
+      (two of three signals), and drafts one first line per firm for the sales rep to send.
+      Never contacts anyone, never buys a list, never stores a personal email or phone number;
+      a firm becomes a deal only when Sales opens one. Zero-credential.
   - repo: Abilityai/keymaker-marketing
     display_name: "Keymaker Marketing"
     description: >-
